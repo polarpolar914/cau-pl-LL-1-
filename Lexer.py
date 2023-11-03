@@ -35,10 +35,16 @@ class Lexer:
         check = self.detect_one_char_op() #한 글자 연산자를 감지
         if check: return
 
-        #위의 모든 경우에 해당하지 않으면 에러 - 잘못된 토큰 - !, @, # ... 등의 특수문자가 들어있거나 소수점이 여러개인 경우
-        print("(Error) Invalid token - There may be invalid character(s) like !, @, # ...etc in the source code or deximal point(.) may be more than one")
+        # ! @ 같은 이상한 문자가 포함되었을때
+        # c언어 식별자 규칙에 맞지 않을 때
+        # 식별자 사이에 공백이 있을 때
+        # 숫자 사이에 공백이 있을 때
+        # 소수점이 여러개일때
+        #위의 모든 경우에 해당하지 않으면 에러 - 잘못된 토큰 - !, @, # ... 등의 특수문자가 들어있거나 소수점이 여러개이거나 숫자사이 공백, 식별자 사이공백 -error
+        print("(Error) Invalid token - There may be invalid character(s) like !, @, # ...etc in the source code or using two or more deximal point(.) in a decimal number or using invaild identifier")
         self.is_error = True
         self.go_to_next_statement()
+
 
 
     def detect_EOF(self):  # 파일의 끝을 감지하는 함수
@@ -86,11 +92,9 @@ class Lexer:
             self.ignore_blank()
             if self.index < len(self.source) and self.source[self.index] in "+-*/:=;)":
                 # 대입 연산자 이후 다른 연산자가 나올때 - error
-                print("(Error) Operator(operater or left_paren) after assignment operator")
+                print("(Error) Operator(operater or right_paren) after assignment operator")
                 self.is_error = True
                 self.go_to_next_statement()
-                if self.id_of_now_stmt in self.symbol_table:
-                    self.symbol_table[self.id_of_now_stmt] = "Unknown"
 
             return True
         else:
@@ -98,7 +102,7 @@ class Lexer:
 
     def detect_one_char_op(self):  # 한 글자 연산자를 감지하는 함수
         one_char_op = self.source[self.index]
-        if one_char_op in "+-*/();=":
+        if one_char_op in "+-*/();:=":
             self.token_string = one_char_op
             if one_char_op == "+":
                 self.next_token = TokenType.ADD_OP
@@ -126,10 +130,20 @@ class Lexer:
                 self.next_token = TokenType.RIGHT_PAREN
                 if (self.verbose): print(self.token_string)
             elif one_char_op == "=":
+                # =를 :=로 쓴경우 - warning
+                # :=로 썼다고 가정하고 계속 진행
                 self.token_string = ":="
                 self.next_token = TokenType.ASSIGN_OP
                 if (self.verbose): print(self.token_string)
                 print("(Warning) Using = instead of := ==> assuming :=")
+                self.is_warning = True
+            elif one_char_op == ":":
+                # :를 :=로 쓴경우 - warning
+                # :=로 썼다고 가정하고 계속 진행
+                self.token_string = ":="
+                self.next_token = TokenType.ASSIGN_OP
+                if (self.verbose): print(self.token_string)
+                print("(Warning) Using : instead of := ==> assuming :=")
                 self.is_warning = True
             self.index += 1
             self.ignore_blank()
@@ -137,8 +151,7 @@ class Lexer:
                 self.index] in "+-*/:=":
                 # 연산자가 여러개 연속해서 나올 때 - warning
                 # )다음에는 당연히 연산자가 나올 수 있으므로 )가 아닐 때만 경고
-                print(
-                    "(Warning) Using multiple operators(operater or left_paren) ==> ignoring multiple operators except the first one")
+                print("(Warning) Using multiple operators(operater or left_paren) ==> ignoring multiple operators except the first one")
                 self.is_warning = True
                 while self.index < len(self.source) and self.source[self.index] in "+-*/:=)":
                     self.index += 1

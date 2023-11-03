@@ -6,6 +6,10 @@ import re
 class Parser(Lexer):#파서 클래스
     def __init__(self, input_source, verbose=False, test=False):#파서 생성자
         super().__init__(input_source, verbose=verbose, test=test)
+
+        if input_source.replace(" ", "") == "":#입력받은 소스코드가 공백만 있을 때 - error
+            print("(Error) Grammer of this LL(1) parser cannot generate empty source code")
+            exit(1)
         self.test = test  # 파싱이 정상적으로 되었는지 확인하기 위한 트리 출력, 변수에 대입할 값이 제대로 계산되었는지 확인
         self.statement_list = []  # statement들을 저장하는 리스트 - 출력용
         self.statement_index = 0  # 출력용
@@ -75,6 +79,10 @@ class Parser(Lexer):#파서 클래스
                 term += i
             elif i in self.symbol_table and self.symbol_table[i] != "Unknown":
                 term += str(self.symbol_table[i])
+            elif not i in self.symbol_table or self.symbol_table[i] == "Unknown":
+                #정의되지 않은 변수 참조 - error - 에러이긴 하지만 syntax error가 아니라 semantic error이므로 파싱은 계속 진행
+                print("(Error) Undefined variable is referenced")
+                self.is_error = True
             else:
                 print("Error: Invalid expression")
                 return node, None
@@ -83,8 +91,7 @@ class Parser(Lexer):#파서 클래스
             if(self.test):print(f"Result: {result}")
             return node, result
         except:
-            print("Error: Invalid expression")
-            return node, None
+            return node, "Unknown"
 
     def statement(self, parent=None):
         if(not self.verbose):print(self.statement_list[self.statement_index])#현재 파싱 중인 statement 출력
@@ -106,6 +113,8 @@ class Parser(Lexer):#파서 클래스
                 print("(Error) Missing assignment operator")
                 self.symbol_table[lhs_id] = "Unknown"
                 self.is_error = True
+                #error일때도 cnt 출력?
+                #TODO
                 return
             Node("ASSIGN_OP", value=self.token_string, parent=node)
             self.lexical()
@@ -113,11 +122,13 @@ class Parser(Lexer):#파서 클래스
                 tmp_node, result = self.expression(node)
                 self.symbol_table[lhs_id] = result
             else:
-                if self.id_of_now_stmt in self.symbol_table and self.symbol_table[self.id_of_now_stmt] != "Unknown":
-                    # 값이 이미 Unknown이면 Unknown으로 둠
-                    return node
-                elif not self.id_of_now_stmt in self.symbol_table:
-                    self.symbol_table[lhs_id] = "Unknown"
+                self.symbol_table[lhs_id] = "Unknown"
+            if not self.verbose:
+                # error일때도 cnt 출력?
+                # TODO
+                #-v 옵션 없을 때
+                #ex) ID: 2; CONST: 1; OP: 1;
+                print(f"ID: {self.id_cnt}; CONST: {self.const_cnt}; OP: {self.op_cnt};")
         return node
 
     def statements(self, parent=None):
@@ -139,10 +150,19 @@ class Parser(Lexer):#파서 클래스
                     print("(OK)")
                 break
             else:
-                # TODO
-                # 여기 걸리는 경우가 많은듯
-                # ! @ 같은 이상한 문자가 포함되었을때,
+                if self.is_error == True: #아래의 에러가 이미 앞쪽에서 처리된 경우
+                    return
+                # ! @ 같은 이상한 문자가 포함되었을때
+                # c언어 식별자 규칙에 맞지 않을 때
+                # 식별자 사이에 공백이 있을 때
+                # 숫자 사이에 공백이 있을 때
                 # 소수점이 여러개일때
+
+                if self.token_string == ")": # 왼쪽 괄호가 없을 때 - error
+                    print("(Error) Missing left parenthesis")
+                    self.is_error = True
+                    self.go_to_next_statement()
+                    return
                 self.error_recovery()
                 return
         return node
