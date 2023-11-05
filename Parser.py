@@ -158,7 +158,7 @@ class Parser(Lexer):#파서 클래스
                 # c언어 식별자 규칙에 맞지 않을 때
                 # 식별자 사이에 공백이 있을 때
                 # 숫자 사이에 공백이 있을 때
-                # 소수점이 여러개일때
+                # 소수점이 여러개일때 - id detect에서 처리
 
                 if self.token_string == ")": # 왼쪽 괄호가 없을 때 - error
                     print("(Error) Missing left parenthesis")

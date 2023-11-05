@@ -41,10 +41,10 @@ class Lexer:
         # 식별자 사이에 공백이 있을 때
         # 숫자 사이에 공백이 있을 때
         # 소수점이 여러개일때
-        #위의 모든 경우에 해당하지 않으면 에러 - 잘못된 토큰 - !, @, # ... 등의 특수문자가 들어있거나 소수점이 여러개이거나 숫자사이 공백, 식별자 사이공백 -error
-        print("(Error) Invalid token - There may be invalid character(s) like !, @, # ...etc in the source code or using two or more deximal point(.) in a decimal number or using invaild identifier")
+
+
         self.is_error = True
-        self.go_to_next_statement()
+        self.go_to_next_statement() #TODO - 여기서 무한 반복?
         self.print_stmt_and_cnt()
 
 
@@ -78,15 +78,22 @@ class Lexer:
         const_match = re.match(r'-?\d+(\.\d+)?', self.source[self.index:])
         if const_match:
             self.token_string = const_match.group()
-            if self.token_string.count('.') < 2:
-                self.next_token = TokenType.CONST
+            self.next_token = TokenType.CONST
 
-                if (self.verbose): print(self.token_string)
-                self.now_stmt += self.token_string
+            if (self.verbose): print(self.token_string)
+            self.now_stmt += self.token_string
 
-                self.index += len(self.token_string)
-                self.const_cnt += 1
-                return True
+            self.index += len(self.token_string)
+            self.const_cnt += 1
+            if self.index < len(self.source) and self.source[self.index] == ".":
+                # 소수점이 여러개일 때 - warning
+                # 두번째 소수점 이후 - 앞으로 파싱할 부분이므로 수정 가능
+                print("(Warning) Multiple decimal points - ignoring decimal points and digits in the token after second decimal point")
+                self.is_warning = True
+                while self.index < len(self.source) and (self.source[self.index] == "." or self.source[self.index].isdigit()):
+                    self.index += 1
+                self.ignore_blank()
+            return True
         else:
             return False
 
