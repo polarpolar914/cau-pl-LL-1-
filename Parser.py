@@ -94,7 +94,6 @@ class Parser(Lexer):#파서 클래스
             return node, "Unknown"
 
     def statement(self, parent=None):
-        if(not self.verbose):print(self.statement_list[self.statement_index])#현재 파싱 중인 statement 출력
         self.id_of_now_stmt = None
         self.statement_index += 1
 
@@ -124,6 +123,7 @@ class Parser(Lexer):#파서 클래스
             else:
                 self.symbol_table[lhs_id] = "Unknown"
             if not self.verbose:
+                print(self.now_stmt)
                 # error일때도 cnt 출력?
                 # TODO
                 #-v 옵션 없을 때
@@ -137,6 +137,7 @@ class Parser(Lexer):#파서 클래스
             self.statement(node)
 
             if self.next_token == TokenType.SEMI_COLON:#세미콜론이 나왔을 때
+                self.now_stmt = ""
                 semi_colon_node = Node("SEMI_COLON", value=self.token_string, parent=node)
 
                 if self.is_warning == False and self.is_error == False: #에러, 경고가 없을 때
@@ -146,6 +147,7 @@ class Parser(Lexer):#파서 클래스
                         print("(OK)")
                 self.lexical()
             elif self.next_token == TokenType.END:
+                self.now_stmt = ""
                 if self.is_warning == False and self.is_error == False: #에러, 경고가 없을 때
                     print("(OK)")
                 break
