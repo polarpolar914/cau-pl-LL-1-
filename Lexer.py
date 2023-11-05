@@ -207,7 +207,12 @@ class Lexer:
         while self.index < len(self.source):
             if self.source[self.index] == ";":
                 return
-            self.index += 1
+            self.ignore_blank()  # 공백 무시
+            self.detect_EOF()  # 파일의 끝을 감지
+            self.detect_id()  # 식별자를 감지
+            self.detect_const()  # 상수를 감지
+            self.detect_two_cahr_op()  # 두 글자 연산자를 감지
+            self.detect_one_char_op()  # 한 글자 연산자를 감지
 
     def print_stmt_and_cnt(self):
         if not self.verbose:

@@ -39,6 +39,12 @@ class Parser(Lexer):#파서 클래스
         elif self.next_token == TokenType.IDENT or self.next_token == TokenType.CONST:
             Node(TokenType.get_name(self.next_token), value=self.token_string, parent=node)
             self.lexical()
+        elif self.next_token == TokenType.RIGHT_PAREN:
+            #오른쪽 괄호가 먼저 나왔을 때 - error
+            print("(Error) Missing left parenthesis")
+            self.is_error = True
+            self.go_to_next_statement()
+            return
         else:
             self.error_recovery()
         return node
