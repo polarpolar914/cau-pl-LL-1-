@@ -2,9 +2,10 @@
 #error - missing assignment operator, operator after assignment operator
 #소수는 처리하도록 구현했음
 #음수는 decimal에 포함하지 않으며 -는 연산자로만 인식하도록 구현했음 a:= -1;은 에러
+#에러나 경고 메시지는 파싱과정에서 발견되는 순서대로 출력한다. - 미 선언 변수에 대한 에러는 expression에서 발견되므로 expression에서 출력
 #중간에 세미콜론이 없으면 앞뒷줄 연결되었다고 가정하고 연결된 상황에서의 에러 출력 - 각 stmt에 ;이 있는지 여부는 확인하지 않음
 #-v 옵션 없을 때 그냥 중간에 (OK)나 경고 에러 메시지만 출력하도록 구현
-#TODO - 음수, error일때도 cnt 출력?
+#TODO - 테스트 케이스 만들고 오류 있으면 수정 + 보고서 작성
 import sys
 from Parser import Parser
 
