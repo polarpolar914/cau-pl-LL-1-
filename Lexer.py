@@ -63,7 +63,8 @@ class Lexer:
             self.token_string = ident_match.group()
             if self.before_token == TokenType.IDENT: # 식별자가 연속해서 나올 때 - warning
                 # 식별자가 연속해서 나올 때 - warning
-                print("(Warning) Continuous identifiers - ignoring identifiers after the first one")
+                print("(Warning) Continuous identifiers - ignoring identifiers", end="")
+                print("("+self.token_string+")")
                 self.is_warning = True
                 # 뒤에 나온 식별자는 무시
                 # 뒤에 나온 식별자가 정의되었는지 여부는 확인하지 않음 - 해당 에러도 출력하지 않음
@@ -89,7 +90,8 @@ class Lexer:
         if const_match:
             self.token_string = const_match.group()
             if self.before_token == TokenType.CONST:#상수가 연속해서 나올 때 - warning
-                print("(Warning) Continuous constants - ignoring constants after the first one")
+                print("(Warning) Continuous constants - ignoring constants", end="")
+                print("("+self.token_string+")")
                 self.is_warning = True
                 # 뒤에 나온 상수는 무시
                 self.index += len(self.token_string)
@@ -108,11 +110,15 @@ class Lexer:
                     # 소수점이 여러개일 때 - warning
                     # 두번째 소수점 이후 - 앞으로 파싱할 부분이므로 수정 가능
                     print(
-                        "(Warning) Multiple decimal points - ignoring decimal points and digits in the token after second decimal point")
+                        "(Warning) Multiple decimal points - ignoring decimal points and digits after the second decimal point",
+                        end="")
                     self.is_warning = True
+                    print("(", end="")
                     while self.index < len(self.source) and (
                             self.source[self.index] == "." or self.source[self.index].isdigit()):
+                        print(self.source[self.index], end="")
                         self.index += 1
+                    print(")")
                     self.ignore_blank()
             return True
         else:
@@ -217,11 +223,20 @@ class Lexer:
                 self.index] in "+-*/:=":
                 # 연산자가 여러개 연속해서 나올 때 - warning
                 # )다음에는 당연히 연산자가 나올 수 있으므로 )가 아닐 때만 경고
-                print("(Warning) Using multiple operators(operater or left_paren) ==> ignoring multiple operators except the first one")
+                print("(Warning) Using multiple operators(operater or left_paren) ==> ignoring multiple operators except the first one", end="")
                 self.is_warning = True
+                print("(", end="")
                 while self.index < len(self.source) and self.source[self.index] in "+-*/:=)":
                     self.index += 1
-                    self.ignore_blank()
+                    print(self.source[self.index - 1], end="")
+
+                    #ignore_blank() 대용
+                    while self.index < len(self.source) and ord(self.source[self.index]) <= 32:
+                        self.now_stmt += " "
+                        print(" ", end="")
+                        self.index += 1
+
+                print(")")
             return True
         else:
             return False
