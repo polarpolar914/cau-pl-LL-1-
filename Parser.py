@@ -11,15 +11,12 @@ class Parser(Lexer):#파서 클래스
             print("(Error) Grammer of this LL(1) parser cannot generate empty source code")
             exit(1)
         self.test = test  # 파싱이 정상적으로 되었는지 확인하기 위한 트리 출력, 변수에 대입할 값이 제대로 계산되었는지 확인
-        self.statement_list = []  # statement들을 저장하는 리스트 - 출력용
-        self.statement_index = 0  # 출력용
 
-    def error_recovery(self):
-        print("Syntax error encountered. Trying to recover...")
-        while self.index < len(self.source):
-            if self.source[self.index] in ';+-*/()':
-                return
-            self.index += 1
+    def syntax_error(self):
+        print("(Error) Syntax error")
+        self.is_error = True
+        self.go_to_next_statement()
+        self.print_stmt_and_cnt()
 
     def factor(self, parent=None):
         node = Node("FACTOR", parent=parent)
@@ -46,7 +43,7 @@ class Parser(Lexer):#파서 클래스
             self.go_to_next_statement()
             return
         else:
-            self.error_recovery()
+            self.syntax_error()
         return node
 
     def factor_tail(self, parent=None):
@@ -101,11 +98,9 @@ class Parser(Lexer):#파서 클래스
             return node, "Unknown"
 
     def statement(self, parent=None):
-        self.id_of_now_stmt = None
-        self.statement_index += 1
 
         self.id_cnt, self.const_cnt, self.op_cnt = 0, 0, 0
-        self.is_error, self.is_warning, self.warning_msg_list, self.error_msg_list = False, False, [], []
+        self.is_error, self.is_warning, self.before_token = False, False, None
         node = Node("STATEMENT", parent=parent)
         if self.next_token == TokenType.IDENT:
             self.id_of_now_stmt = self.token_string
@@ -154,11 +149,6 @@ class Parser(Lexer):#파서 클래스
             else:
                 if self.is_error == True: #아래의 에러가 이미 앞쪽에서 처리된 경우
                     return
-                # ! @ 같은 이상한 문자가 포함되었을때
-                # c언어 식별자 규칙에 맞지 않을 때
-                # 식별자 사이에 공백이 있을 때
-                # 숫자 사이에 공백이 있을 때
-                # 소수점이 여러개일때 - id detect에서 처리
 
                 if self.token_string == ")": # 왼쪽 괄호가 없을 때 - error
                     print("(Error) Missing left parenthesis")
@@ -166,7 +156,7 @@ class Parser(Lexer):#파서 클래스
                     self.go_to_next_statement()
                     self.print_stmt_and_cnt()
                     return
-                self.error_recovery()
+                self.syntax_error()
                 return
         return node
 
