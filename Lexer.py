@@ -45,6 +45,7 @@ class Lexer:
         print("(Error) Invalid token - There may be invalid character(s) like !, @, # ...etc in the source code or using two or more deximal point(.) in a decimal number or using invaild identifier")
         self.is_error = True
         self.go_to_next_statement()
+        self.print_stmt_and_cnt()
 
 
 
@@ -105,7 +106,7 @@ class Lexer:
                 print("(Error) Operator(operater or right_paren) after assignment operator")
                 self.is_error = True
                 self.go_to_next_statement()
-
+                self.print_stmt_and_cnt()
             return True
         else:
             return False
@@ -207,3 +208,10 @@ class Lexer:
             if self.source[self.index] == ";":
                 return
             self.index += 1
+
+    def print_stmt_and_cnt(self):
+        if not self.verbose:
+            print(self.now_stmt)
+            # -v 옵션 없을 때
+            # ex) ID: 2; CONST: 1; OP: 1;
+            print(f"ID: {self.id_cnt}; CONST: {self.const_cnt}; OP: {self.op_cnt};")

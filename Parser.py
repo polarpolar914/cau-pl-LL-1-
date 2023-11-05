@@ -85,7 +85,8 @@ class Parser(Lexer):#파서 클래스
                 self.is_error = True
             else:
                 print("Error: Invalid expression")
-                return node, None
+                #TODO - 에러처리
+                return node, "Unknown"
         try:
             result = eval(term)
             if(self.test):print(f"Result: {result}")
@@ -112,8 +113,7 @@ class Parser(Lexer):#파서 클래스
                 print("(Error) Missing assignment operator")
                 self.symbol_table[lhs_id] = "Unknown"
                 self.is_error = True
-                #error일때도 cnt 출력?
-                #TODO
+                self.print_stmt_and_cnt()
                 return
             Node("ASSIGN_OP", value=self.token_string, parent=node)
             self.lexical()
@@ -122,13 +122,7 @@ class Parser(Lexer):#파서 클래스
                 self.symbol_table[lhs_id] = result
             else:
                 self.symbol_table[lhs_id] = "Unknown"
-            if not self.verbose:
-                print(self.now_stmt)
-                # error일때도 cnt 출력?
-                # TODO
-                #-v 옵션 없을 때
-                #ex) ID: 2; CONST: 1; OP: 1;
-                print(f"ID: {self.id_cnt}; CONST: {self.const_cnt}; OP: {self.op_cnt};")
+            self.print_stmt_and_cnt()
         return node
 
     def statements(self, parent=None):
@@ -164,6 +158,7 @@ class Parser(Lexer):#파서 클래스
                     print("(Error) Missing left parenthesis")
                     self.is_error = True
                     self.go_to_next_statement()
+                    self.print_stmt_and_cnt()
                     return
                 self.error_recovery()
                 return
