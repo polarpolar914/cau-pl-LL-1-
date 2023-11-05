@@ -16,7 +16,6 @@ class Parser(Lexer):#파서 클래스
         print("(Error) Syntax error")
         self.is_error = True
         self.go_to_next_statement()
-        self.print_stmt_and_cnt()
 
     def factor(self, parent=None):
         node = Node("FACTOR", parent=parent)
@@ -114,7 +113,6 @@ class Parser(Lexer):#파서 클래스
                 print("(Error) Missing assignment operator")
                 self.symbol_table[lhs_id] = "Unknown"
                 self.is_error = True
-                self.print_stmt_and_cnt()
                 return
             Node("ASSIGN_OP", value=self.token_string, parent=node)
             self.lexical()
@@ -123,7 +121,6 @@ class Parser(Lexer):#파서 클래스
                 self.symbol_table[lhs_id] = result
             else:
                 self.symbol_table[lhs_id] = "Unknown"
-            self.print_stmt_and_cnt()
         return node
 
     def statements(self, parent=None):
@@ -132,19 +129,20 @@ class Parser(Lexer):#파서 클래스
             self.statement(node)
 
             if self.next_token == TokenType.SEMI_COLON:#세미콜론이 나왔을 때
-                self.now_stmt = ""
                 semi_colon_node = Node("SEMI_COLON", value=self.token_string, parent=node)
-
-                if self.is_warning == False and self.is_error == False: #에러, 경고가 없을 때
-                    if self.index == len(self.source): #마지막 statement일 때
-                        print("(Warning) There is semicolon at the end of the statements ==> ignoring semicolon")
-                    else: #마지막 statement가 아닐 때
-                        print("(OK)")
-                self.lexical()
-            elif self.next_token == TokenType.END:
-                self.now_stmt = ""
+                if self.index == len(self.source):  # 마지막 statement일 때
+                    print("(Warning) There is semicolon at the end of the statements ==> ignoring semicolon")
+                    self.is_warning = True
+                self.print_stmt_and_cnt()
                 if self.is_warning == False and self.is_error == False: #에러, 경고가 없을 때
                     print("(OK)")
+                self.now_stmt = ""
+                self.lexical()
+            elif self.next_token == TokenType.END:
+                self.print_stmt_and_cnt()
+                if self.is_warning == False and self.is_error == False: #에러, 경고가 없을 때
+                    print("(OK)")
+                self.now_stmt = ""
                 break
             else:
                 if self.is_error == True: #아래의 에러가 이미 앞쪽에서 처리된 경우
@@ -154,7 +152,6 @@ class Parser(Lexer):#파서 클래스
                     print("(Error) Missing left parenthesis")
                     self.is_error = True
                     self.go_to_next_statement()
-                    self.print_stmt_and_cnt()
                     return
                 self.syntax_error()
                 return

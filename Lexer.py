@@ -44,7 +44,6 @@ class Lexer:
         print("(Error) Unknown token - maybe invalid identifier(Does not follow the identifier name rules for language c) or character(!, @, etc.)")
         self.is_error = True
         self.go_to_next_statement()
-        self.print_stmt_and_cnt()
 
 
 
@@ -140,7 +139,6 @@ class Lexer:
                 print("(Error) Operator(operater or right_paren) after assignment operator")
                 self.is_error = True
                 self.go_to_next_statement()
-                self.print_stmt_and_cnt()
             return True
         else:
             return False
