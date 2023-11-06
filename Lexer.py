@@ -145,8 +145,10 @@ class Lexer:
 
     def detect_one_char_op(self):  # 한 글자 연산자를 감지하는 함수
         one_char_op = self.source[self.index]
+
         if one_char_op in "+-*/();:=":
             self.token_string = one_char_op
+            self.index += 1
             if one_char_op == "+":
                 self.next_token = TokenType.ADD_OP
 
@@ -154,6 +156,8 @@ class Lexer:
                 self.now_stmt += self.token_string
 
                 self.op_cnt += 1
+
+                self.ignore_multiple_op()
             elif one_char_op == "-":
                 self.next_token = TokenType.SUB_OP
 
@@ -161,6 +165,8 @@ class Lexer:
                 self.now_stmt += self.token_string
 
                 self.op_cnt += 1
+
+                self.ignore_multiple_op()
             elif one_char_op == "*":
                 self.next_token = TokenType.MULT_OP
 
@@ -168,6 +174,8 @@ class Lexer:
                 self.now_stmt += self.token_string
 
                 self.op_cnt += 1
+
+                self.ignore_multiple_op()
             elif one_char_op == "/":
                 self.next_token = TokenType.DIV_OP
 
@@ -175,6 +183,8 @@ class Lexer:
                 self.now_stmt += self.token_string
 
                 self.op_cnt += 1
+
+                self.ignore_multiple_op()
             elif one_char_op == ";":
                 self.next_token = TokenType.SEMI_COLON
 
@@ -187,65 +197,79 @@ class Lexer:
                 if (self.verbose): print(self.token_string)
                 self.now_stmt += self.token_string
 
+                self.ignore_multiple_op()
             elif one_char_op == ")":
                 self.next_token = TokenType.RIGHT_PAREN
 
                 if (self.verbose): print(self.token_string)
                 self.now_stmt += self.token_string
 
-            elif one_char_op == "=":
-                # =를 :=로 쓴경우 - warning
+                self.ignore_blank()
+            elif one_char_op == "=" or one_char_op == ":":  # =나 :가 나올 때
+                self.next_token = TokenType.ASSIGN_OP
+                # :=를 =로 쓴경우 - warning
+                # :=를 :로 쓴경우 - warning
                 # :=로 썼다고 가정하고 계속 진행
                 self.token_string = ":="
-                self.next_token = TokenType.ASSIGN_OP
 
                 if (self.verbose): print(self.token_string)
                 self.now_stmt += self.token_string
 
-                print("(Warning) Using = instead of := ==> assuming :=")
+                if one_char_op == "=":
+                    print("(Warning) Using = instead of := ==> assuming :=")
+                else:
+                    print("(Warning) Using : instead of := ==> assuming :=")
                 self.is_warning = True
-            elif one_char_op == ":":
-                # :를 :=로 쓴경우 - warning
-                # :=로 썼다고 가정하고 계속 진행
-                self.token_string = ":="
-                self.next_token = TokenType.ASSIGN_OP
 
-                if (self.verbose): print(self.token_string)
-                self.now_stmt += self.token_string
-
-                print("(Warning) Using : instead of := ==> assuming :=")
-                self.is_warning = True
-            self.index += 1
-            self.ignore_blank()
-            if self.source[self.index - 1] != ")" and self.index < len(self.source) and self.source[
-                self.index] in "+-*/:=":
-                # 연산자가 여러개 연속해서 나올 때 - warning
-                # )다음에는 당연히 연산자가 나올 수 있으므로 )가 아닐 때만 경고
-                print("(Warning) Using multiple operators(operater or left_paren) ==> ignoring multiple operators except the first one", end="")
-                self.is_warning = True
-                print("(", end="")
-                while self.index < len(self.source) and self.source[self.index] in "+-*/:=)":
-                    self.index += 1
-                    print(self.source[self.index - 1], end="")
-
-                    #ignore_blank() 대용
-                    while self.index < len(self.source) and ord(self.source[self.index]) <= 32:
-                        self.now_stmt += " "
-                        print(" ", end="")
-                        self.index += 1
-
-                print(")")
+                self.op_after_assign_op()
             return True
         else:
             return False
 
     def ignore_blank(self):
         while self.index < len(self.source) and ord(self.source[self.index]) <= 32:
-            self.now_stmt += " "
-            self.index += 1
+            # 공백이면 self.index를 1 증가시키고 self.now_stmt에 공백 추가
+            # 공백이 아니면 self.source에서 self.source[self.index]를 제거
+            if self.source[self.index] == " ":
+                self.now_stmt += " "
+                self.index += 1
+            else:
+                self.source = self.source[:self.index] + self.source[self.index + 1:]
+
+    def ignore_multiple_op(self):  # 연산자가 여러개 연속해서 나올 때 - warning
+        self.ignore_blank()
+        if self.index < len(self.source) and self.source[self.index] in "+-*/:=":
+            # 연산자가 여러개 연속해서 나올 때 - warning
+            # )다음에는 당연히 연산자가 나올 수 있으므로 )가 아닐 때만 경고
+            print(
+                "(Warning) Using multiple operators(operater or left_paren) ==> ignoring multiple operators except "
+                "the first one",
+                end="")
+            self.is_warning = True
+            print("(", end="")
+            while self.index < len(self.source) and self.source[self.index] in "+-*/:=)":
+                self.index += 1
+                print(self.source[self.index - 1], end="")
+
+                # ignore_blank() 대용
+                while self.index < len(self.source) and ord(self.source[self.index]) <= 32:
+                    self.now_stmt += " "
+                    print(" ", end="")
+                    self.index += 1
+            print(")")
+
+    def op_after_assign_op(self):  #:= 다음에 연산자가 나올 때 - error
+        self.ignore_blank()
+        if self.index < len(self.source) and self.source[self.index] in "+-*/:=;)":
+            # 대입 연산자 이후 다른 연산자가 나올때 - error
+            print("(Error) Operator(operater or right_paren, semi_colon) after assignment operator")
+            self.is_error = True
+            self.go_to_next_statement()
 
     def go_to_next_statement(self):  # 다음 statement로 이동
-        while self.index < len(self.source):
+        while self.index < len(
+                self.source) and self.next_token != TokenType.SEMI_COLON and self.next_token != TokenType.END:
+            self.before_token = self.next_token
             if self.source[self.index] == ";":
                 return
             self.ignore_blank()  # 공백 무시
@@ -261,3 +285,4 @@ class Lexer:
             # -v 옵션 없을 때
             # ex) ID: 2; CONST: 1; OP: 1;
             print(f"ID: {self.id_cnt}; CONST: {self.const_cnt}; OP: {self.op_cnt};")
+
