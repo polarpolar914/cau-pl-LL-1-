@@ -42,13 +42,19 @@ class Lexer:
 
         # ! @ 같은 이상한 문자가 포함되었을때
         # c언어 식별자 규칙에 맞지 않을 때
-        error = "(Error) Unknown token - maybe invalid identifier(Does not follow the identifier name rules for language c) or character(!, @, etc.)"
+        if self.before_token == TokenType.IDENT and self.source[self.index - 1] != " ":
+            error = "(Error) Unknown token - invalid identifier(Does not follow the identifier name rules for language c) (" + self.token_string
+        else:
+            error = "(Error) Unknown token - invalid identifier(Does not follow the identifier name rules for language c) or character(!, @, etc.) ("
+        while self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
+            error += self.source[self.index]
+            self.now_stmt += self.source[self.index]
+            self.index += 1
+        error += ")"
         self.list_message.append(error)
         self.is_error = True
         self.go_to_next_statement()
-
-
-
+        self.lexical()
     def detect_EOF(self):  # 파일의 끝을 감지하는 함수
         if self.index >= len(self.source):
             self.token_string = "EOF"
@@ -82,6 +88,7 @@ class Lexer:
                 self.index += len(self.token_string)
                 if self.token_string not in self.symbol_table: self.symbol_table[self.token_string] = "Unknown"
                 self.id_cnt += 1
+
                 return True
         else:
             return False
@@ -90,6 +97,7 @@ class Lexer:
         const_match = re.match(r'-?\d+(\.\d+)?', self.source[self.index:])
         if const_match:
             self.token_string = const_match.group()
+
             if self.before_token == TokenType.CONST:#상수가 연속해서 나올 때 - warning
                 warning = "(Warning) Continuous constants - ignoring constants"+"("+self.token_string+")"
                 self.list_message.append(warning)
@@ -271,6 +279,30 @@ class Lexer:
         else:
             return False
 
+    def check_id_start_with_digit(self, const, is_error): #식별자가 숫자로 시작하는지 확인하는 함수
+        # 식별자가 숫자로 시작하면 - error
+        if self.index + len(const) + 1 < len(self.source) and self.source[self.index + len(const)] == " " and \
+                self.source[self.index + len(const) + 1].isdigit():
+            # 식별자가 숫자로 시작하고 소수점이 나오는 경우 - error
+            self.token_string = const
+            error = "(Error) Identifier starts with digit and decimal point (" + const
+            while self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
+                error += self.source[self.index]
+                self.now_stmt += self.source[self.index]
+                self.token_string += self.source[self.index]
+                self.index += 1
+            self.list_message.append(error)
+            self.is_error = True
+
+            self.next_token = TokenType.IDENT
+
+            if not is_error :
+                self.go_to_next_statement()
+                self.lexical()
+
+            return True
+        else:
+            return False
     def go_to_next_statement(self):  # 다음 statement로 이동 - error발생시 파싱을 계속 할수 없으므로 lexer를 변형한 이 함수를 사용
         paren = ""
         while self.index < len(self.source) and self.next_token != TokenType.SEMI_COLON and self.next_token != TokenType.END:
@@ -296,18 +328,21 @@ class Lexer:
             if check: continue
 
             check = self.detect_one_char_op()  # 한 글자 연산자를 감지
-            if check:
-                if self.next_token == TokenType.LEFT_PAREN:
-                    paren += "("
-                elif self.next_token == TokenType.RIGHT_PAREN:
-                    if paren == "" or paren[-1] != "(":
-                        # 왼쪽 괄호가 없는데 오른쪽 괄호가 나왔을 때 - error
-                        error = "(Error) Missing left parenthesis"
-                        self.list_message.append(error)
-                        self.is_error = True
-                    else:
-                        paren = paren[:-1]
-                continue
+            if check: continue
+            # ! @ 같은 이상한 문자가 포함되었을때
+            # c언어 식별자 규칙에 맞지 않을 때
+            if self.before_token == TokenType.IDENT and self.source[self.index - 1] != " ":
+                error = "(Error) Unknown token - invalid identifier(Does not follow the identifier name rules for language c) (" + self.token_string
+            else:
+                error = "(Error) Unknown token - invalid identifier(Does not follow the identifier name rules for language c) or character(!, @, etc.) ("
+            while self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
+                error += self.source[self.index]
+                self.now_stmt += self.source[self.index]
+                self.index += 1
+            error += ")"
+            self.list_message.append(error)
+
+
         if paren != "" and paren[-1] == "(":
             # 괄호가 닫히지 않은 것 - warning
             warning = "(Warning) Missing right parenthesis"
@@ -322,6 +357,7 @@ class Lexer:
         if self.next_token == TokenType.SEMI_COLON and self.index == len(self.source):
             # 세미콜론이 나왔는데 파일의 끝이면 - warning
             warning = "(Warning) There is semicolon at the end of the statements ==> ignoring semicolon"
+            self.now_stmt = self.now_stmt[:-1]
             self.list_message.append(warning)
             self.is_warning = True
             self.index += 1

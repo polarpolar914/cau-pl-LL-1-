@@ -14,7 +14,6 @@ class Parser(Lexer):#파서 클래스
         self.test = test  # 파싱이 정상적으로 되었는지 확인하기 위한 트리 출력, 변수에 대입할 값이 제대로 계산되었는지 확인
 
     def syntax_error(self):
-        print(self.token_string)
         error = "(Error) Syntax error - invalid token or invalid token sequence or missing token"
         self.list_message.append(error)
         self.is_error = True
@@ -114,6 +113,9 @@ class Parser(Lexer):#파서 클래스
             lhs_id = self.token_string
             self.id_cnt += 1
             self.lexical()
+            if self.is_error == True:
+                #앞에서 error가 발생한 이후 go_to_next_statment호출 됨. 해당 statment는 파싱이 끝난 상태
+                return
             if self.next_token == TokenType.ASSIGN_OP:
                 if self.op_after_assign_op():
                     #오류 메시지는 self.op_after_assign_op()에서 출력
@@ -147,10 +149,10 @@ class Parser(Lexer):#파서 클래스
                     warning = "(Warning) There is semicolon at the end of the statements ==> ignoring semicolon"
                     self.list_message.append(warning)
                     self.is_warning = True
+                    self.now_stmt = self.now_stmt[:-1]
                 self.print_stmt_and_cnt()
                 if self.is_warning == False and self.is_error == False: #에러, 경고가 없을 때
                     print("(OK)\n")
-
                     self.now_stmt = ""
                 self.lexical()
             elif self.next_token == TokenType.END:
@@ -170,8 +172,7 @@ class Parser(Lexer):#파서 클래스
                     self.print_stmt_and_cnt()
                     self.lexical()
                     continue
-                elif self.is_error == True: #아래의 에러가 이미 앞쪽에서 처리된 경우
-
+                elif self.is_error == True: #아래의 에러가 이미 앞쪽에서 처리된 경우 - 앞에서 is_error가 True로 바뀌고 go_to_next_statement()를 호출했으므로 다음 statement로 넘어감
                     continue
                 self.syntax_error()
                 self.print_stmt_and_cnt()
