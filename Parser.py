@@ -8,12 +8,15 @@ class Parser(Lexer):#파서 클래스
         super().__init__(input_source, verbose=verbose, test=test)
 
         if input_source.replace(" ", "") == "":#입력받은 소스코드가 공백만 있을 때 - error
-            print("(Error) Grammer of this LL(1) parser cannot generate empty source code")
+            error = "(Error) Grammer of this LL(1) parser cannot generate empty source code"
+            self.list_message.append(error)
             exit(1)
         self.test = test  # 파싱이 정상적으로 되었는지 확인하기 위한 트리 출력, 변수에 대입할 값이 제대로 계산되었는지 확인
 
     def syntax_error(self):
-        print("(Error) Syntax error")
+        print(self.token_string)
+        error = "(Error) Syntax error - invalid token or invalid token sequence or missing token"
+        self.list_message.append(error)
         self.is_error = True
         self.go_to_next_statement()
 
@@ -25,22 +28,22 @@ class Parser(Lexer):#파서 클래스
             if self.next_token != TokenType.RIGHT_PAREN:
                 #오른쪽 괄호가 없을 때 - warning
                 self.is_warning = True
-                print("(Warning) Missing right parenthesis ==> assuming right parenthesis at the end of statement")
+                warning = "(Warning) Missing right parenthesis ==> assuming right parenthesis at the end of statement"
+                self.list_message.append(warning)
                 #해당 statement의 맨 오른쪽에 오른쪽 괄호가 있다고 가정하고 계속 진행함
                 #LL(1) 파서이므로 오른쪽 괄호가 없다는 것은 이미 파싱한 부분이 아닌 앞으로 파싱할 부분(오른쪽)에 오류가 있다는 것임 - 에러출력 + 계속파싱
                 #오른쪽 괄호가 있는 곳은 맨 오른쪽으로 가정, 맨오른쪽==해당 statement의 끝
-                self.index += 1
-                return node
+
+                if self.next_token == TokenType.SEMI_COLON:
+                    self.now_stmt = self.now_stmt[:-1] + ");"
+                else:
+                    self.now_stmt = self.now_stmt + ")"
+                self.go_to_next_statement()
+                return expr_node
             self.lexical()
         elif self.next_token == TokenType.IDENT or self.next_token == TokenType.CONST:
             Node(TokenType.get_name(self.next_token), value=self.token_string, parent=node)
             self.lexical()
-        elif self.next_token == TokenType.RIGHT_PAREN:
-            #오른쪽 괄호가 먼저 나왔을 때 - error
-            print("(Error) Missing left parenthesis")
-            self.is_error = True
-            self.go_to_next_statement()
-            return
         else:
             self.syntax_error()
         return node
@@ -83,10 +86,12 @@ class Parser(Lexer):#파서 클래스
                 term += str(self.symbol_table[i])
             elif not i in self.symbol_table or self.symbol_table[i] == "Unknown":
                 #정의되지 않은 변수 참조 - error - 에러이긴 하지만 syntax error가 아니라 semantic error이므로 파싱은 계속 진행
-                print("(Error) Undefined variable is referenced")
+                error = "(Error) Undefined variable is referenced"
+                self.list_message.append(error)
                 self.is_error = True
             else:
-                print("Error: Invalid expression")
+                error = "Error: Invalid expression"
+                self.list_message.append(error)
                 #TODO - 에러처리
                 return node, "Unknown"
         try:
@@ -97,9 +102,10 @@ class Parser(Lexer):#파서 클래스
             return node, "Unknown"
 
     def statement(self, parent=None):
-
         self.id_cnt, self.const_cnt, self.op_cnt = 0, 0, 0
         self.is_error, self.is_warning, self.before_token = False, False, None
+        self.list_message = []
+
         node = Node("STATEMENT", parent=parent)
         if self.next_token == TokenType.IDENT:
             self.id_of_now_stmt = self.token_string
@@ -108,9 +114,15 @@ class Parser(Lexer):#파서 클래스
             lhs_id = self.token_string
             self.id_cnt += 1
             self.lexical()
-            if self.next_token != TokenType.ASSIGN_OP:
+            if self.next_token == TokenType.ASSIGN_OP:
+                if self.op_after_assign_op():
+                    #오류 메시지는 self.op_after_assign_op()에서 출력
+                    self.go_to_next_statement()
+                    return
+            else:
                 #<statement> → <ident><assignment_op><expression> 형식이 아닐 때 - error
-                print("(Error) Missing assignment operator")
+                error = "(Error) Missing assignment operator"
+                self.list_message.append(error)
                 self.symbol_table[lhs_id] = "Unknown"
                 self.is_error = True
                 return
@@ -128,32 +140,42 @@ class Parser(Lexer):#파서 클래스
         while self.next_token != TokenType.END:
             self.statement(node)
 
+            #print(self.source[self.index:], end="\n----left source code----\n") #파싱이 끝난 후 남은 소스코드 출력
             if self.next_token == TokenType.SEMI_COLON:#세미콜론이 나왔을 때
                 semi_colon_node = Node("SEMI_COLON", value=self.token_string, parent=node)
                 if self.index == len(self.source):  # 마지막 statement일 때
-                    print("(Warning) There is semicolon at the end of the statements ==> ignoring semicolon")
+                    warning = "(Warning) There is semicolon at the end of the statements ==> ignoring semicolon"
+                    self.list_message.append(warning)
                     self.is_warning = True
                 self.print_stmt_and_cnt()
                 if self.is_warning == False and self.is_error == False: #에러, 경고가 없을 때
-                    print("(OK)")
-                self.now_stmt = ""
+                    print("(OK)\n")
+
+                    self.now_stmt = ""
                 self.lexical()
             elif self.next_token == TokenType.END:
                 self.print_stmt_and_cnt()
                 if self.is_warning == False and self.is_error == False: #에러, 경고가 없을 때
-                    print("(OK)")
-                self.now_stmt = ""
+                    print("(OK)\n")
+
+                    self.now_stmt = ""
                 break
             else:
-                if self.is_error == True: #아래의 에러가 이미 앞쪽에서 처리된 경우
-                    return
-
                 if self.token_string == ")": # 왼쪽 괄호가 없을 때 - error
-                    print("(Error) Missing left parenthesis")
+                    error = "(Error) Missing left parenthesis"
+                    self.list_message.append(error)
                     self.is_error = True
+                    self.symbol_table[self.id_of_now_stmt] = "Unknown"
                     self.go_to_next_statement()
-                    return
+                    self.print_stmt_and_cnt()
+                    self.lexical()
+                    continue
+                elif self.is_error == True: #아래의 에러가 이미 앞쪽에서 처리된 경우
+
+                    continue
                 self.syntax_error()
+                self.print_stmt_and_cnt()
+                self.lexical()
                 return
         return node
 
@@ -170,6 +192,8 @@ class Parser(Lexer):#파서 클래스
                 print(f"{pre}{node}")
         if not self.verbose: # -v 옵션 없을 때 식별자별로 값 출력
             print("Result ==>",end="")
+            if len(self.symbol_table) == 0:
+                print("There is no identifier")
             for i in self.symbol_table:
                 print(f" {i}: {self.symbol_table[i]}",end=";")
             print()

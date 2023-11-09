@@ -1,4 +1,4 @@
-class TokenType: #토큰 타입들을 나타내는 클래스
+class TokenType: #토큰 타입들을 나타내 는 클래스
     UNKNOWN = 0
     IDENT = 1
     CONST = 2
