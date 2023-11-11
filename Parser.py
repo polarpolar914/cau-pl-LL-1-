@@ -83,9 +83,13 @@ class Parser(Lexer):#파서 클래스
                 term += i
             elif i in self.symbol_table and self.symbol_table[i] != "Unknown":
                 term += str(self.symbol_table[i])
+            elif i in self.symbol_table and self.symbol_table[i] == "invalid identifier name":
+                #잘못된 식별자 이름이 사용된 경우 - error
+                #이미 앞에서 에러 처리후 go_to_next_statement()호출되었으므로 다음 statement로 넘어감
+                return node
             elif not i in self.symbol_table or self.symbol_table[i] == "Unknown":
                 #정의되지 않은 변수 참조 - error - 에러이긴 하지만 syntax error가 아니라 semantic error이므로 파싱은 계속 진행
-                error = "(Error) Undefined variable is referenced"
+                error = "(Error) Undefined variable is referenced(" + i + ")"
                 self.list_message.append(error)
                 self.is_error = True
             else:
@@ -101,17 +105,12 @@ class Parser(Lexer):#파서 클래스
             return node, "Unknown"
 
     def statement(self, parent=None):
-        self.id_cnt, self.const_cnt, self.op_cnt = 0, 0, 0
-        self.is_error, self.is_warning, self.before_token = False, False, None
-        self.list_message = []
-
         node = Node("STATEMENT", parent=parent)
         if self.next_token == TokenType.IDENT:
             self.id_of_now_stmt = self.token_string
             if (self.token_string not in self.symbol_table) or (self.token_string in self.symbol_table and self.symbol_table[self.token_string] == None): self.symbol_table[self.token_string] = "Unknown"
             Node("IDENT", value=self.token_string, parent=node)
             lhs_id = self.token_string
-            self.id_cnt += 1
             self.lexical()
             if self.is_error == True:
                 #앞에서 error가 발생한 이후 go_to_next_statment호출 됨. 해당 statment는 파싱이 끝난 상태
@@ -121,6 +120,7 @@ class Parser(Lexer):#파서 클래스
                     #오류 메시지는 self.op_after_assign_op()에서 출력
                     self.go_to_next_statement()
                     return
+
             else:
                 #<statement> → <ident><assignment_op><expression> 형식이 아닐 때 - error
                 error = "(Error) Missing assignment operator"
@@ -141,7 +141,6 @@ class Parser(Lexer):#파서 클래스
         node = Node("STATEMENTS", parent=parent)
         while self.next_token != TokenType.END:
             self.statement(node)
-
             #print(self.source[self.index:], end="\n----left source code----\n") #파싱이 끝난 후 남은 소스코드 출력
             if self.next_token == TokenType.SEMI_COLON:#세미콜론이 나왔을 때
                 semi_colon_node = Node("SEMI_COLON", value=self.token_string, parent=node)
@@ -150,17 +149,11 @@ class Parser(Lexer):#파서 클래스
                     self.list_message.append(warning)
                     self.is_warning = True
                     self.now_stmt = self.now_stmt[:-1]
-                self.print_stmt_and_cnt()
-                if self.is_warning == False and self.is_error == False: #에러, 경고가 없을 때
-                    print("(OK)\n")
-                    self.now_stmt = ""
+                if not self.verbose : self.print_stmt_and_cnt()
+
                 self.lexical()
             elif self.next_token == TokenType.END:
-                self.print_stmt_and_cnt()
-                if self.is_warning == False and self.is_error == False: #에러, 경고가 없을 때
-                    print("(OK)\n")
-
-                    self.now_stmt = ""
+                if not self.verbose : self.print_stmt_and_cnt()
                 break
             else:
                 if self.token_string == ")": # 왼쪽 괄호가 없을 때 - error
@@ -169,13 +162,13 @@ class Parser(Lexer):#파서 클래스
                     self.is_error = True
                     self.symbol_table[self.id_of_now_stmt] = "Unknown"
                     self.go_to_next_statement()
-                    self.print_stmt_and_cnt()
+                    if not self.verbose : self.print_stmt_and_cnt()
                     self.lexical()
                     continue
                 elif self.is_error == True: #아래의 에러가 이미 앞쪽에서 처리된 경우 - 앞에서 is_error가 True로 바뀌고 go_to_next_statement()를 호출했으므로 다음 statement로 넘어감
                     continue
                 self.syntax_error()
-                self.print_stmt_and_cnt()
+                if not self.verbose : self.print_stmt_and_cnt()
                 self.lexical()
                 return
         return node

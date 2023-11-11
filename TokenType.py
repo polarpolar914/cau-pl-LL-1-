@@ -11,6 +11,7 @@ class TokenType: #토큰 타입들을 나타내 는 클래스
     LEFT_PAREN = 9
     RIGHT_PAREN = 10
     END = 11
+    UNKNOW = 12
 
     @classmethod
     def get_name(cls, token_type): #토큰 타입을 문자열로 변환 숫자->문자열

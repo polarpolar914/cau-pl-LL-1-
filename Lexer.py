@@ -42,19 +42,25 @@ class Lexer:
 
         # ! @ 같은 이상한 문자가 포함되었을때
         # c언어 식별자 규칙에 맞지 않을 때
+        tmp_flag = False
         if self.before_token == TokenType.IDENT and self.source[self.index - 1] != " ":
             error = "(Error) Unknown token - invalid identifier(Does not follow the identifier name rules for language c) (" + self.token_string
+            self.next_token = TokenType.IDENT
         else:
-            error = "(Error) Unknown token - invalid identifier(Does not follow the identifier name rules for language c) or character(!, @, etc.) ("
+            tmp_flag = True
+            error = "(Error) Unknown token - invalid character(!, @, etc.) or string with invalid character ("
+            self.next_token = TokenType.UNKNOWN
         while self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
             error += self.source[self.index]
+            self.token_string += self.source[self.index]
             self.now_stmt += self.source[self.index]
             self.index += 1
+        if tmp_flag: error = self.after_invalid_char(error)
         error += ")"
         self.list_message.append(error)
         self.is_error = True
         self.go_to_next_statement()
-        self.lexical()
+        if self.next_token != TokenType.SEMI_COLON: self.lexical()
     def detect_EOF(self):  # 파일의 끝을 감지하는 함수
         if self.index >= len(self.source):
             self.token_string = "EOF"
@@ -70,7 +76,15 @@ class Lexer:
             self.token_string = ident_match.group()
             if self.before_token == TokenType.IDENT: # 식별자가 연속해서 나올 때 - warning
                 # 식별자가 연속해서 나올 때 - warning
-                warning = "(Warning) Continuous identifiers - ignoring identifiers"+"("+self.token_string+")"
+                warning = "(Warning) Continuous identifiers - ignoring identifiers"+"("
+
+                if self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
+                    while self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
+                        self.token_string += self.source[self.index]
+                        self.index += 1
+
+                warning += self.token_string + ")"
+
                 self.list_message.append(warning)
                 self.is_warning = True
                 # 뒤에 나온 식별자는 무시
@@ -82,12 +96,19 @@ class Lexer:
             else:  # 식별자가 연속해서 나오지 않을 때
                 self.next_token = TokenType.IDENT
 
+
                 if (self.verbose): print(self.token_string)
                 self.now_stmt += self.token_string
 
                 self.index += len(self.token_string)
-                if self.token_string not in self.symbol_table: self.symbol_table[self.token_string] = "Unknown"
-                self.id_cnt += 1
+
+                if self.check_id_with_invaild_char():
+                    self.lexical()
+                else:
+                    self.id_cnt += 1
+
+                if self.token_string not in self.symbol_table and not self.is_error: self.symbol_table[self.token_string] = "Unknown"
+
 
                 return True
         else:
@@ -97,6 +118,12 @@ class Lexer:
         const_match = re.match(r'-?\d+(\.\d+)?', self.source[self.index:])
         if const_match:
             self.token_string = const_match.group()
+
+            if self.check_id_start_with_digit(self.token_string, self.is_error):
+                self.go_to_next_statement()
+                if self.next_token != TokenType.SEMI_COLON: self.lexical()
+                return True
+
 
             if self.before_token == TokenType.CONST:#상수가 연속해서 나올 때 - warning
                 warning = "(Warning) Continuous constants - ignoring constants"+"("+self.token_string+")"
@@ -115,7 +142,7 @@ class Lexer:
 
                 self.index += len(self.token_string)
                 self.const_cnt += 1
-                if self.index < len(self.source) and self.source[self.index] == ".":
+                if self.index < len(self.source) and self.source[self.index] == "." and "." in self.token_string:
                     # 소수점이 여러개일 때 - warning
                     # 두번째 소수점 이후 - 앞으로 파싱할 부분이므로 수정 가능
                     warning = "(Warning) Multiple decimal points - ignoring decimal points and digits after the second decimal point("
@@ -230,6 +257,10 @@ class Lexer:
                 if one_char_op == "=":
                     warning = "(Warning) Using = instead of := ==> assuming :="
                     self.list_message.append(warning)
+                elif self.source[self.index:self.index+2] == " =":
+                    warning = "(Warning) Using : = instead of := ==> assuming :="
+                    self.list_message.append(warning)
+                    self.index += 2
                 else:
                     warning = "(Warning) Using : instead of := ==> assuming :="
                     self.list_message.append(warning)
@@ -271,7 +302,7 @@ class Lexer:
         self.ignore_blank()
         if self.index < len(self.source) and self.source[self.index] in "+-*/:=;)":
             # 대입 연산자 이후 다른 연산자가 나올때 - error
-            error = "(Error) Operator(operater or right_paren, semi_colon) after assignment operator"
+            error = "(Error) Operator(operater or right_paren, semi_colon, assign_op) after assignment operator"
             self.list_message.append(error)
             self.is_error = True
             self.go_to_next_statement()
@@ -279,27 +310,43 @@ class Lexer:
         else:
             return False
 
-    def check_id_start_with_digit(self, const, is_error): #식별자가 숫자로 시작하는지 확인하는 함수
+    def check_id_start_with_digit(self, const, error): #식별자가 숫자로 시작하는지 확인하는 함수
         # 식별자가 숫자로 시작하면 - error
-        if self.index + len(const) + 1 < len(self.source) and self.source[self.index + len(const)] == " " and \
-                self.source[self.index + len(const) + 1].isdigit():
-            # 식별자가 숫자로 시작하고 소수점이 나오는 경우 - error
+        if self.index + len(const) < len(self.source) and self.source[self.index + len(const)] not in "+-*/();:= ":
+            self.now_stmt += const
             self.token_string = const
-            error = "(Error) Identifier starts with digit and decimal point (" + const
+            self.index += len(const)
+            error = "(Error) Identifier starts with digit (" + const
             while self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
                 error += self.source[self.index]
                 self.now_stmt += self.source[self.index]
                 self.token_string += self.source[self.index]
                 self.index += 1
+            error += ")"
             self.list_message.append(error)
             self.is_error = True
 
+            self.id_cnt += 1
+            self.symbol_table[self.token_string] = "invalid identifier name"
             self.next_token = TokenType.IDENT
+            return True
+        else:
+            return False
 
-            if not is_error :
-                self.go_to_next_statement()
-                self.lexical()
+    def check_id_with_invaild_char(self): #식별자에 허용되지 않은 문자가 포함되었는지 확인하는 함수
+        # 식별자에 허용되지 않은 문자가 포함되었을 때 - error
+        if self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
+            while self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
+                self.now_stmt += self.source[self.index]
+                self.token_string += self.source[self.index]
+                self.index += 1
+            self.is_error = True
 
+            self.symbol_table[self.token_string] = "invalid identifier name"
+            error = "(Error) Unknown token - invalid identifier(Does not follow the identifier name rules for language c) (" + self.token_string + ")"
+            self.list_message.append(error)
+
+            self.id_cnt += 1
             return True
         else:
             return False
@@ -316,7 +363,7 @@ class Lexer:
                 # 선언되지 않은 식별자가 나왔을 때 - error
                 # 원래는 파서가 발견해야하는 오류 이지만 이미 앞에서 오류가 발생하여 파싱이 중단되었을 경우에는 Lexer가 발견해야함
                 if self.token_string not in self.symbol_table:
-                    error = "(Error) Using undeclared identifier"
+                    error = "(Error) Using undeclared identifier(" + self.token_string + ")"
                     self.list_message.append(error)
                     self.is_error = True
                 continue
@@ -329,18 +376,29 @@ class Lexer:
 
             check = self.detect_one_char_op()  # 한 글자 연산자를 감지
             if check: continue
+
             # ! @ 같은 이상한 문자가 포함되었을때
             # c언어 식별자 규칙에 맞지 않을 때
+            tmp_flag = False
             if self.before_token == TokenType.IDENT and self.source[self.index - 1] != " ":
                 error = "(Error) Unknown token - invalid identifier(Does not follow the identifier name rules for language c) (" + self.token_string
+                self.next_token = TokenType.IDENT
             else:
-                error = "(Error) Unknown token - invalid identifier(Does not follow the identifier name rules for language c) or character(!, @, etc.) ("
+                tmp_flag = True
+                error = "(Error) Unknown token - invalid character(!, @, etc.) or string with invalid character ("
+                self.next_token = TokenType.UNKNOWN
             while self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
                 error += self.source[self.index]
                 self.now_stmt += self.source[self.index]
+                self.token_string += self.source[self.index]
                 self.index += 1
+            if tmp_flag: error = self.after_invalid_char(error)
+            else:
+                self.symbol_table[self.token_string] = "invalid identifier name"
+                self.id_cnt += 1
             error += ")"
             self.list_message.append(error)
+            self.is_error = True
 
 
         if paren != "" and paren[-1] == "(":
@@ -361,8 +419,29 @@ class Lexer:
             self.list_message.append(warning)
             self.is_warning = True
             self.index += 1
+    def after_invalid_char(self, error):
+        while self.index + 1 < len(self.source) and self.source[self.index + 1] not in "+-*/();:= ":
+            error += self.source[self.index]
+            self.token_string += self.source[self.index]
+            self.now_stmt += self.source[self.index]
+            self.index += 1
+
+        if self.index + 1 >= len(self.source):
+            return error
+
+        if self.source[self.index] not in "+-*/();:= ":
+                error += self.source[self.index]
+                self.token_string += self.source[self.index]
+                self.now_stmt += self.source[self.index]
+                self.index += 1
+        return error
+
 
     def print_stmt_and_cnt(self):
+
+        if self.is_error and self.id_of_now_stmt in self.symbol_table and self.symbol_table[self.id_of_now_stmt] != "invalid identifier name":
+            self.symbol_table[self.id_of_now_stmt] = "Unknown"
+
         if not self.verbose:
             print(self.now_stmt)
             # -v 옵션 없을 때
@@ -375,7 +454,13 @@ class Lexer:
             if self.is_error == True or self.is_warning == True:
                 print()
 
-                self.now_stmt = ""
+            if self.is_warning == False and self.is_error == False:  # 에러, 경고가 없을 때
+                if not self.verbose: print("(OK)\n")
+
+            self.now_stmt = ""
+            self.id_cnt, self.const_cnt, self.op_cnt = 0, 0, 0
+            self.is_error, self.is_warning, self.before_token = False, False, None
+            self.list_message = []
 
     def print_remaining_code(self): #테스트용 함수
 
