@@ -17,34 +17,22 @@ import os
 from Parser import Parser
 
 if __name__ == "__main__":
-    v = "-v" in sys.argv
-    t = "-t" in sys.argv
-    file = sys.argv[-1]
-
-
-    #파일 존재 여부 확인
-    # 확인하고 싶은 파일의 경로
+    v = "-v" in sys.argv # -v 옵션 여부
+    t = "-t" in sys.argv # -t 테스트용 트리 출력 여부, 변수에 대입할 값 출력 여부
+    file = sys.argv[-1] # 파서가 처리할 파일 명
 
     # 파일이 존재하는지 확인
     if not os.path.exists(file):
         print(f'{file} 파일이 존재하지 않습니다.')
         exit(1)
 
+    v = False
+    t = False
+    file = "test.txt"
+
     #파일 읽기
     with open(file, "r") as in_fp:
         code = in_fp.read()
-
-        for i in range(len(code)-1, -1, -1): #코드의 맨 뒤에서부터 공백 제거 - statements의 맨 마지막에 세미콜론이 있는 경우를 판별하기 위한 전처리
-            if ord(code[i]) <= 32:
-                code = code[:i]
-            else:
-                break
-
-
+        if code[-1] == '\n': code = code[:-1]#마지막에 개행문자가 있으면 제거-오류방지
         p = Parser(code, verbose=v, test=t) #verbose: -v 옵션, test: 트리, 변수에 대입할 값 출력
-
-        code = code.replace("\n", "") #출력용으로 statement들을 저장
-        p.statement_list = code.split(";")
-        for i in range(len(p.statement_list)-1):
-            p.statement_list[i] += ";"
         p.run()

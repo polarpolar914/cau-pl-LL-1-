@@ -5,7 +5,7 @@ from anytree import RenderTree
 import re
 class Parser(Lexer):#파서 클래스
     def __init__(self, input_source, verbose=False, test=False):#파서 생성자
-        super().__init__(input_source, verbose=verbose, test=test)
+        super().__init__(input_source, verbose=verbose)
 
         if input_source.replace(" ", "") == "":#입력받은 소스코드가 공백만 있을 때 - error
             error = "(Error) Grammer of this LL(1) parser cannot generate empty source code"
@@ -38,7 +38,7 @@ class Parser(Lexer):#파서 클래스
                 else:
                     self.now_stmt = self.now_stmt + ")"
                 self.go_to_next_statement()
-                return expr_node
+                return node
             self.lexical()
         elif self.next_token == TokenType.IDENT or self.next_token == TokenType.CONST:
             Node(TokenType.get_name(self.next_token), value=self.token_string, parent=node)
@@ -93,9 +93,9 @@ class Parser(Lexer):#파서 클래스
                 self.list_message.append(error)
                 self.is_error = True
             else:
+                #여기에 걸리는 경우는 없음
                 error = "Error: Invalid expression"
                 self.list_message.append(error)
-                #TODO - 에러처리
                 return node, "Unknown"
         try:
             result = eval(term)
@@ -127,6 +127,8 @@ class Parser(Lexer):#파서 클래스
                 self.list_message.append(error)
                 self.symbol_table[lhs_id] = "Unknown"
                 self.is_error = True
+                self.go_to_next_statement()
+                if self.next_token != TokenType.SEMI_COLON:self.lexical()
                 return
             Node("ASSIGN_OP", value=self.token_string, parent=node)
             self.lexical()
@@ -149,11 +151,11 @@ class Parser(Lexer):#파서 클래스
                     self.list_message.append(warning)
                     self.is_warning = True
                     self.now_stmt = self.now_stmt[:-1]
-                if not self.verbose : self.print_stmt_and_cnt()
+                if not self.verbose : self.end_of_stmt()
 
                 self.lexical()
             elif self.next_token == TokenType.END:
-                if not self.verbose : self.print_stmt_and_cnt()
+                if not self.verbose : self.end_of_stmt()
                 break
             else:
                 if self.token_string == ")": # 왼쪽 괄호가 없을 때 - error
@@ -162,15 +164,15 @@ class Parser(Lexer):#파서 클래스
                     self.is_error = True
                     self.symbol_table[self.id_of_now_stmt] = "Unknown"
                     self.go_to_next_statement()
-                    if not self.verbose : self.print_stmt_and_cnt()
+                    if not self.verbose : self.end_of_stmt()
                     self.lexical()
                     continue
                 elif self.is_error == True: #아래의 에러가 이미 앞쪽에서 처리된 경우 - 앞에서 is_error가 True로 바뀌고 go_to_next_statement()를 호출했으므로 다음 statement로 넘어감
                     continue
                 self.syntax_error()
-                if not self.verbose : self.print_stmt_and_cnt()
+                if not self.verbose : self.end_of_stmt()
                 self.lexical()
-                return
+                return node
         return node
 
     def program(self):
