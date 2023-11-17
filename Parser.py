@@ -10,7 +10,8 @@ class Parser(Lexer):#파서 클래스
         if input_source.replace(" ", "") == "":#입력받은 소스코드가 공백만 있을 때 - error
             error = "(Error) Grammer of this LL(1) parser cannot generate empty source code"
             self.list_message.append(error)
-            exit(1)
+            self.is_error = True
+            self.end_of_stmt()
         self.test = test  # 파싱이 정상적으로 되었는지 확인하기 위한 트리 출력, 변수에 대입할 값이 제대로 계산되었는지 확인
 
     def syntax_error(self):
@@ -35,8 +36,16 @@ class Parser(Lexer):#파서 클래스
 
                 if self.next_token == TokenType.SEMI_COLON:
                     self.now_stmt = self.now_stmt[:-1] + ");"
+                    self.token_string = ")"
+                    if self.verbose: print(self.token_string)
+                    self.token_string = ";"
+                    if self.verbose: print(self.token_string)
                 else:
                     self.now_stmt = self.now_stmt + ")"
+                    self.token_string = ")"
+                    if self.verbose: print(self.token_string)
+                    self.token_string = "EOF"
+                    if self.verbose: print(self.token_string)
                 self.go_to_next_statement()
                 return node
             self.lexical()
@@ -49,7 +58,7 @@ class Parser(Lexer):#파서 클래스
 
     def factor_tail(self, parent=None):
         node = Node("FACTOR_TAIL", parent=parent)
-        while self.next_token in (TokenType.MULT_OP, TokenType.DIV_OP):
+        while self.next_token == TokenType.MULT_OP:
             Node(TokenType.get_name(self.next_token), value=self.token_string, parent=node)
             self.lexical()
             self.factor(node)
@@ -63,7 +72,7 @@ class Parser(Lexer):#파서 클래스
 
     def term_tail(self, parent=None):
         node = Node("TERM_TAIL", parent=parent)
-        while self.next_token in (TokenType.ADD_OP, TokenType.SUB_OP):
+        while self.next_token == TokenType.ADD_OP:
             Node(TokenType.get_name(self.next_token), value=self.token_string, parent=node)
             self.lexical()
             self.term(node)
@@ -143,16 +152,14 @@ class Parser(Lexer):#파서 클래스
         node = Node("STATEMENTS", parent=parent)
         while self.next_token != TokenType.END:
             self.statement(node)
-            #print(self.source[self.index:], end="\n----left source code----\n") #파싱이 끝난 후 남은 소스코드 출력
             if self.next_token == TokenType.SEMI_COLON:#세미콜론이 나왔을 때
                 semi_colon_node = Node("SEMI_COLON", value=self.token_string, parent=node)
                 if self.index == len(self.source):  # 마지막 statement일 때
-                    warning = "(Warning) There is semicolon at the end of the statements ==> ignoring semicolon"
+                    warning = "(Warning) There is semicolon at the end of the program ==> ignoring semicolon"
                     self.list_message.append(warning)
                     self.is_warning = True
                     self.now_stmt = self.now_stmt[:-1]
                 if not self.verbose : self.end_of_stmt()
-
                 self.lexical()
             elif self.next_token == TokenType.END:
                 if not self.verbose : self.end_of_stmt()
@@ -173,6 +180,8 @@ class Parser(Lexer):#파서 클래스
                 if not self.verbose : self.end_of_stmt()
                 self.lexical()
                 return node
+        if self.now_stmt != "":
+            if not self.verbose: self.end_of_stmt()
         return node
 
     def program(self):

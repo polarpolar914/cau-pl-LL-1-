@@ -5,13 +5,11 @@ class TokenType: #토큰 타입들을 나타내는 클래스
     ASSIGN_OP = 3
     SEMI_COLON = 4
     ADD_OP = 5
-    SUB_OP = 6
-    MULT_OP = 7
-    DIV_OP = 8
-    LEFT_PAREN = 9
-    RIGHT_PAREN = 10
-    END = 11
-    UNKNOW = 12
+    MULT_OP = 6
+    LEFT_PAREN = 7
+    RIGHT_PAREN = 8
+    END = 9
+    UNKNOW = 10
 
     @classmethod
     def get_name(cls, token_type): #토큰 타입을 문자열로 변환 숫자->문자열

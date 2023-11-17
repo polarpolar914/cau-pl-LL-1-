@@ -84,11 +84,10 @@ class Lexer:
 
                 if self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ": #식별자가 끝날때 까지
                     while self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
-                        self.token_string += self.source[self.index]
-                        if self.verbose: print(self.token_string)
+                        warning += self.source[self.index]
                         self.index += 1
 
-                warning += self.token_string + ")" #warning 메시지 저장
+                warning += ")" #warning 메시지 저장
 
                 self.list_message.append(warning)
                 self.is_warning = True #warning 발생 여부 플래그 설정
@@ -108,7 +107,8 @@ class Lexer:
                 self.index += len(self.token_string) #인덱스 증가
 
                 if self.check_id_with_invaild_char(): #식별자에 허용되지 않은 문자가 포함되었을 때 - error
-                    self.lexical()
+                    self.go_to_next_statement()
+                    if self.next_token != TokenType.SEMI_COLON: self.lexical()
                 else:
                     self.id_cnt += 1
 
@@ -130,7 +130,6 @@ class Lexer:
                 self.go_to_next_statement() #다음 statement로 이동
                 if self.next_token != TokenType.SEMI_COLON: self.lexical() #세미콜론이 아니면 다음 토큰을 읽어옴
                 return True
-
 
             if self.before_token == TokenType.CONST:#상수가 연속해서 나올 때 - warning
                 warning = "(Warning) Continuous constants - ignoring constants"+"("+self.token_string+")" #warning 메시지 저장
@@ -198,7 +197,7 @@ class Lexer:
 
                 self.ignore_multiple_op() #연산자가 여러개 연속해서 나올 때 - warning
             elif one_char_op == "-": #연산자에 따라 다음 토큰 설정
-                self.next_token = TokenType.SUB_OP #다음 토큰을 SUB_OP으로 설정
+                self.next_token = TokenType.ADD_OP #다음 토큰을 ADD_OP으로 설정
 
                 if (self.verbose): print(self.token_string) #verbose 옵션에 따라 출력
                 self.now_stmt += self.token_string #현재 파싱 중인 statement에 연산자 추가
@@ -216,7 +215,7 @@ class Lexer:
 
                 self.ignore_multiple_op() #연산자가 여러개 연속해서 나올 때 - warning
             elif one_char_op == "/": # 연산자에 따라 다음 토큰 설정
-                self.next_token = TokenType.DIV_OP #다음 토큰을 DIV_OP으로 설정
+                self.next_token = TokenType.MULT_OP #다음 토큰을 MULT_OP으로 설정
 
                 if (self.verbose): print(self.token_string) #verbose 옵션에 따라 출력
                 self.now_stmt += self.token_string #현재 파싱 중인 statement에 연산자 추가
@@ -227,7 +226,7 @@ class Lexer:
             elif one_char_op == ";": # 연산자에 따라 다음 토큰 설정
                 self.next_token = TokenType.SEMI_COLON #다음 토큰을 SEMI_COLON으로 설정
 
-                if (self.verbose): print(self.token_string) #verbose 옵션에 따라 출력
+                if (self.verbose and self.index < len(self.source)): print(self.token_string)  # verbose 옵션에 따라 출력
                 self.now_stmt += self.token_string #현재 파싱 중인 statement에 연산자 추가
 
             elif one_char_op == "(": # 연산자에 따라 다음 토큰 설정
@@ -243,6 +242,7 @@ class Lexer:
 
                     self.ignore_multiple_op() #연산자가 여러개 연속해서 나올 때 - warning
                     self.go_to_next_statement() #다음 statement로 이동
+                    if self.next_token != TokenType.SEMI_COLON: self.lexical() #세미콜론이 아니면 다음 토큰을 읽어옴
                     return True
 
                 self.ignore_multiple_op() #연산자가 여러개 연속해서 나올 때 - warning
@@ -263,14 +263,10 @@ class Lexer:
                 if (self.verbose): print(self.token_string)
                 self.now_stmt += self.token_string
 
-                if one_char_op == "=":
+                if one_char_op == "=": # :=를 =로 쓴경우 - warning
                     warning = "(Warning) Using = instead of := ==> assuming :="
                     self.list_message.append(warning)
-                elif self.source[self.index:self.index+2] == " =":
-                    warning = "(Warning) Using : = instead of := ==> assuming :="
-                    self.list_message.append(warning)
-                    self.index += 2
-                else:
+                elif one_char_op == ":": # :=를 :로 쓴경우 - warning
                     warning = "(Warning) Using : instead of := ==> assuming :="
                     self.list_message.append(warning)
                 self.is_warning = True
@@ -324,12 +320,12 @@ class Lexer:
 
     def check_id_start_with_digit(self, const): #식별자가 숫자로 시작하는지 확인하는 함수
         # 식별자가 숫자로 시작하면 - error
-        if self.index + len(const) < len(self.source) and self.source[self.index + len(const)] not in "+-*/();:= ":
+        if self.index + len(const) < len(self.source) and self.source[self.index + len(const)] not in ".+-*/();:= ":
             self.now_stmt += const
             self.token_string = const
             self.index += len(const)
             error = "(Error) Identifier starts with digit (" + const
-            while self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
+            while self.index < len(self.source) and self.source[self.index] not in ".+-*/();:= ":
                 error += self.source[self.index]
                 self.now_stmt += self.source[self.index]
                 self.token_string += self.source[self.index]
@@ -360,13 +356,12 @@ class Lexer:
             self.symbol_table[self.token_string] = "invalid identifier name"
             error = "(Error) Unknown token - invalid identifier(Does not follow the identifier name rules for language c) (" + self.token_string + ")"
             self.list_message.append(error)
-
+            self.next_token = TokenType.IDENT
             self.id_cnt += 1
             return True
         else:
             return False
     def go_to_next_statement(self):  # 다음 statement로 이동 - error발생시 파싱을 계속 할수 없으므로 lexer를 변형한 이 함수를 사용
-        paren = ""
         while self.index < len(self.source) and self.next_token != TokenType.SEMI_COLON and self.next_token != TokenType.END:
             self.before_token = self.next_token
             self.ignore_blank()  # 공백 무시
@@ -402,7 +397,7 @@ class Lexer:
                 tmp_flag = True
                 error = "(Error) Unknown token - invalid character(!, @, etc.) or string with invalid character ("
                 self.next_token = TokenType.UNKNOWN
-            while self.index < len(self.source) and self.source[self.index] not in "+-*/();:= ":
+            while self.index < len(self.source) and self.source[self.index] not in "+-*/();:=    ":
                 error += self.source[self.index]
                 self.now_stmt += self.source[self.index]
                 self.token_string += self.source[self.index]
@@ -416,34 +411,22 @@ class Lexer:
             self.list_message.append(error)
             self.is_error = True
 
-
-        if paren != "" and paren[-1] == "(":
-            # 괄호가 닫히지 않은 것 - warning
-            warning = "(Warning) Missing right parenthesis"
-            self.list_message.append(warning)
-            self.is_warning = True
-
-            if self.now_stmt[-1] == ";":
-                self.now_stmt = self.now_stmt[:-1] + ");"
-            else:
-                self.now_stmt += ");"
-
         if self.next_token == TokenType.SEMI_COLON and self.index == len(self.source):
             # 세미콜론이 나왔는데 파일의 끝이면 - warning
-            warning = "(Warning) There is semicolon at the end of the statements ==> ignoring semicolon"
+            warning = "(Warning) There is semicolon at the end of the program ==> ignoring semicolon"
             self.now_stmt = self.now_stmt[:-1]
             self.list_message.append(warning)
             self.is_warning = True
             self.index += 1
     def after_invalid_char(self, error):
-        while self.index + 1 < len(self.source) and self.source[self.index + 1] not in "+-*/();:= ":
+        while self.index< len(self.source) and self.source[self.index] not in "+-*/();:= ":
             error += self.source[self.index]
             self.token_string += self.source[self.index]
             if self.verbose: print(self.token_string)
             self.now_stmt += self.source[self.index]
             self.index += 1
 
-        if self.index + 1 >= len(self.source):
+        if self.index >= len(self.source):
             return error
 
         if self.source[self.index] not in "+-*/();:= ":
