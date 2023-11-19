@@ -1,0 +1,7 @@
+operand1 := 1;
+operand2 := 2;
+target := operand1  + operand2) * 3;
+target := operand1  + operand2 +(3;
+target := operand1  (+ operand2) * 3;
+target := operand1  +(+ operand2) * 3;
+target := operand1  )+ operand2( * 3

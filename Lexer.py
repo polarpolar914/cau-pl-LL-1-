@@ -1,7 +1,5 @@
 from TokenType import TokenType
 import re
-
-
 class Lexer:
     def __init__(self, input_source, verbose=False):
         self.token_string = ""  # 현재 토큰의 문자열
