@@ -22,6 +22,6 @@ python3 main.py -v test.txt
 python main.py -v test.txt
 
 ## Test Environment
-| OS | Architecture | Compiler | Make |
-| --- | --- | --- | --- |
+| OS | Architecture | Version of Python |
+| --- | --- | --- | 
 | macOS 14.0 | arm64 | python 3.9 |
