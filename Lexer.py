@@ -460,4 +460,4 @@ class Lexer:
             self.id_cnt, self.const_cnt, self.op_cnt = 0, 0, 0
             self.is_error, self.is_warning, self.before_token = False, False, None
             self.list_message = []
-
+            self.id_of_now_stmt = None

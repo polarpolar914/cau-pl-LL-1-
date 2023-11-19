@@ -12,6 +12,7 @@ if __name__ == "__main__":
         print(f'{file} 파일이 존재하지 않습니다.')
         exit(1)
 
+
     #파일 읽기
     with open(file, "r") as in_fp:
         code = in_fp.read()

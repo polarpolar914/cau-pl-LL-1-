@@ -13,6 +13,7 @@ class Node(AnyNode): #노드 클래스
         ret = []
         if self.value is not None:
             ret.append(self.value)
+            self.value = None
         for child in self.children:
             ret += child.preorder()
         return ret

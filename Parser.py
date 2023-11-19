@@ -19,6 +19,8 @@ class Parser(Lexer):#파서 클래스
         self.list_message.append(error)
         self.is_error = True
         self.go_to_next_statement()
+        if self.next_token != TokenType.SEMI_COLON:
+            self.lexical()
 
     def factor(self, parent=None):
         node = Node("FACTOR", parent=parent)
@@ -86,7 +88,13 @@ class Parser(Lexer):#파서 클래스
         RHS = node.preorder()
         term = ""
         for i in RHS:
-            if re.compile(r'-?\d+(\.\d+)?').fullmatch(i):  #숫자일 때
+            if re.fullmatch(r'^\d+$', i):
+                term += i
+            elif re.fullmatch(r'^\d+\.\d+$', i):
+                term += i
+            elif re.fullmatch(r'^-\d+$', i):
+                term += i
+            elif re.fullmatch(r'^-\d+\.\d+$', i):
                 term += i
             elif i in "+-*/()":
                 term += i
@@ -108,6 +116,7 @@ class Parser(Lexer):#파서 클래스
                 return node, "Unknown"
         try:
             result = eval(term)
+            node.value = str(result)
             if(self.test):print(f"Result: {result}")
             return node, result
         except:
@@ -123,12 +132,12 @@ class Parser(Lexer):#파서 클래스
             self.lexical()
             if self.is_error == True:
                 #앞에서 error가 발생한 이후 go_to_next_statment호출 됨. 해당 statment는 파싱이 끝난 상태
-                return
+                return node
             if self.next_token == TokenType.ASSIGN_OP:
                 if self.op_after_assign_op():
                     #오류 메시지는 self.op_after_assign_op()에서 출력
                     self.go_to_next_statement()
-                    return
+                    return node
 
             else:
                 #<statement> → <ident><assignment_op><expression> 형식이 아닐 때 - error
@@ -138,7 +147,7 @@ class Parser(Lexer):#파서 클래스
                 self.is_error = True
                 self.go_to_next_statement()
                 if self.next_token != TokenType.SEMI_COLON:self.lexical()
-                return
+                return node
             Node("ASSIGN_OP", value=self.token_string, parent=node)
             self.lexical()
             if self.is_error == False:
@@ -179,7 +188,7 @@ class Parser(Lexer):#파서 클래스
                 self.syntax_error()
                 if not self.verbose : self.end_of_stmt()
                 self.lexical()
-                return node
+                continue
         if self.now_stmt != "":
             if not self.verbose: self.end_of_stmt()
         return node
@@ -197,8 +206,9 @@ class Parser(Lexer):#파서 클래스
                 print(f"{pre}{node}")
         if not self.verbose: # -v 옵션 없을 때 식별자별로 값 출력
             print("Result ==>",end="")
-            if len(self.symbol_table) == 0:
+            if len(self.symbol_table) == 0 or (len(self.symbol_table) == 1 and None in self.symbol_table):
                 print("There is no identifier")
             for i in self.symbol_table:
-                print(f" {i}: {self.symbol_table[i]}",end=";")
+                if i != None:
+                    print(f" {i}: {self.symbol_table[i]}",end=";")
             print()
