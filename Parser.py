@@ -62,7 +62,19 @@ class Parser(Lexer):#파서 클래스
         node = Node("FACTOR_TAIL", parent=parent)
         while self.next_token == TokenType.MULT_OP:
             Node(TokenType.get_name(self.next_token), value=self.token_string, parent=node)
+            div = False
+            if self.token_string == "/":
+                div = True
             self.lexical()
+            if self.next_token == TokenType.CONST:
+                error = "(Error) Invalid expression - division by zero"
+                self.list_message.append(error)
+                self.is_error = True
+            elif self.next_token == TokenType.IDENT:
+                if self.token_string in self.symbol_table and self.symbol_table[self.token_string] == 0 and div == True:
+                    error = "(Error) Invalid expression - division by zero"
+                    self.list_message.append(error)
+                    self.is_error = True
             self.factor(node)
         return node
 
@@ -131,7 +143,9 @@ class Parser(Lexer):#파서 클래스
             lhs_id = self.token_string
             self.lexical()
             if self.is_error == True:
-                #앞에서 error가 발생한 이후 go_to_next_statment호출 됨. 해당 statment는 파싱이 끝난 상태
+                if self.next_token != TokenType.SEMI_COLON and self.next_token != TokenType.END:
+                    self.go_to_next_statement()
+                    self.lexical()
                 return node
             if self.next_token == TokenType.ASSIGN_OP:
                 if self.op_after_assign_op():
@@ -188,7 +202,6 @@ class Parser(Lexer):#파서 클래스
                 self.syntax_error()
                 if not self.verbose : self.end_of_stmt()
                 self.lexical()
-                continue
         if self.now_stmt != "":
             if not self.verbose: self.end_of_stmt()
         return node
