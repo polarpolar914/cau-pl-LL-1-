@@ -64,11 +64,11 @@ class Parser(Lexer):#파서 클래스
             if self.token_string == "/":
                 div = True
             self.lexical()
-            if self.next_token == TokenType.CONST:
+            if div and self.next_token == TokenType.CONST:
                 error = "(Error) Invalid expression - division by zero"
                 self.list_message.append(error)
                 self.is_error = True
-            elif self.next_token == TokenType.IDENT:
+            elif div and self.next_token == TokenType.IDENT:
                 if self.token_string in self.symbol_table and self.symbol_table[self.token_string] == 0 and div == True:
                     error = "(Error) Invalid expression - division by zero"
                     self.list_message.append(error)
@@ -110,10 +110,6 @@ class Parser(Lexer):#파서 클래스
                 term += i
             elif i in self.symbol_table and self.symbol_table[i] != "Unknown":
                 term += str(self.symbol_table[i])
-            elif i in self.symbol_table and self.symbol_table[i] == "invalid identifier name":
-                #잘못된 식별자 이름이 사용된 경우 - error
-                #이미 앞에서 에러 처리후 go_to_next_statement()호출되었으므로 다음 statement로 넘어감
-                return node
             elif not i in self.symbol_table or self.symbol_table[i] == "Unknown":
                 #정의되지 않은 변수 참조 - error - 에러이긴 하지만 syntax error가 아니라 semantic error이므로 파싱은 계속 진행
                 error = "(Error) Undefined variable is referenced(" + i + ")"
