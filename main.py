@@ -4,7 +4,7 @@ from Parser import Parser
 
 if __name__ == "__main__":
     v = "-v" in sys.argv # -v 옵션 여부
-    t = "-t" in sys.argv # -t 테스트용 트리 출력 여부, 변수에 대입할 값 출 력 여부
+    t = "-t" in sys.argv # -t 테스트용 트리 출력 여부, 변수에 대입할 값 출력 여부
     file = sys.argv[-1] # 파서가 처리할 파일 명
 
     # 파일이 존재하는지 확인

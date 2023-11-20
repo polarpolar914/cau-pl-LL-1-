@@ -14,14 +14,6 @@ class Parser(Lexer):#파서 클래스
             self.end_of_stmt()
         self.test = test  # 파싱이 정상적으로 되었는지 확인하기 위한 트리 출력, 변수에 대입할 값이 제대로 계산되었는지 확인
 
-    def syntax_error(self):
-        error = "(Error) Syntax error - invalid token or invalid token sequence or missing token"
-        self.list_message.append(error)
-        self.is_error = True
-        self.go_to_next_statement()
-        if self.next_token != TokenType.SEMI_COLON:
-            self.lexical()
-
     def factor(self, parent=None):
         node = Node("FACTOR", parent=parent)
         if self.next_token == TokenType.LEFT_PAREN:
@@ -38,23 +30,29 @@ class Parser(Lexer):#파서 클래스
 
                 if self.next_token == TokenType.SEMI_COLON:
                     self.now_stmt = self.now_stmt[:-1] + ");"
-                    self.token_string = ")"
-                    if self.verbose: print(self.token_string)
-                    self.token_string = ";"
-                    if self.verbose: print(self.token_string)
-                else:
+                    self.next_token = TokenType.RIGHT_PAREN
+                    if self.verbose: self.print_v()
+                    self.next_token = TokenType.SEMI_COLON
+                    if self.verbose: self.print_v()
+                elif self.next_token == TokenType.EOF:
                     self.now_stmt = self.now_stmt + ")"
-                    self.token_string = ")"
-                    if self.verbose: print(self.token_string)
-                    self.token_string = "EOF"
-                    if self.verbose: print(self.token_string)
-                self.go_to_next_statement()
+                    self.next_token = TokenType.RIGHT_PAREN
+                    if self.verbose: self.print_v()
+                    self.next_token = TokenType.EOF
+                    if self.verbose: self.print_v()
                 return node
             self.lexical()
         elif self.next_token == TokenType.IDENT or self.next_token == TokenType.CONST:
             Node(TokenType.get_name(self.next_token), value=self.token_string, parent=node)
             self.lexical()
         else:
+            if self.next_token == TokenType.CONST:
+                self.const_cnt -= 1
+                self.now_stmt = self.now_stmt[:-len(self.token_string)]
+            elif self.next_token == TokenType.IDENT:
+                self.id_cnt -= 1
+                self.now_stmt = self.now_stmt[:-len(self.token_string)]
+            self.after_invalid_char()
             self.syntax_error()
         return node
 
@@ -143,7 +141,7 @@ class Parser(Lexer):#파서 클래스
             lhs_id = self.token_string
             self.lexical()
             if self.is_error == True:
-                if self.next_token != TokenType.SEMI_COLON and self.next_token != TokenType.END:
+                if self.next_token != TokenType.SEMI_COLON and self.next_token != TokenType.EOF:
                     self.go_to_next_statement()
                     self.lexical()
                 return node
@@ -160,7 +158,7 @@ class Parser(Lexer):#파서 클래스
                 self.symbol_table[lhs_id] = "Unknown"
                 self.is_error = True
                 self.go_to_next_statement()
-                if self.next_token != TokenType.SEMI_COLON:self.lexical()
+                if self.next_token != TokenType.SEMI_COLON and self.next_token != TokenType.EOF:self.lexical()
                 return node
             Node("ASSIGN_OP", value=self.token_string, parent=node)
             self.lexical()
@@ -173,7 +171,7 @@ class Parser(Lexer):#파서 클래스
 
     def statements(self, parent=None):
         node = Node("STATEMENTS", parent=parent)
-        while self.next_token != TokenType.END:
+        while self.next_token != TokenType.EOF:
             self.statement(node)
             if self.next_token == TokenType.SEMI_COLON:#세미콜론이 나왔을 때
                 semi_colon_node = Node("SEMI_COLON", value=self.token_string, parent=node)
@@ -184,7 +182,7 @@ class Parser(Lexer):#파서 클래스
                     self.now_stmt = self.now_stmt[:-1]
                 if not self.verbose : self.end_of_stmt()
                 self.lexical()
-            elif self.next_token == TokenType.END:
+            elif self.next_token == TokenType.EOF:
                 if not self.verbose : self.end_of_stmt()
                 break
             else:
@@ -199,6 +197,13 @@ class Parser(Lexer):#파서 클래스
                     continue
                 elif self.is_error == True: #아래의 에러가 이미 앞쪽에서 처리된 경우 - 앞에서 is_error가 True로 바뀌고 go_to_next_statement()를 호출했으므로 다음 statement로 넘어감
                     continue
+                if self.next_token == TokenType.CONST:
+                    self.const_cnt -= 1
+                    self.now_stmt = self.now_stmt[:-len(self.token_string)]
+                elif self.next_token == TokenType.IDENT:
+                    self.id_cnt -= 1
+                    self.now_stmt = self.now_stmt[:-len(self.token_string)]
+                self.after_invalid_char()
                 self.syntax_error()
                 if not self.verbose : self.end_of_stmt()
                 self.lexical()
